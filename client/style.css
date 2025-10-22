@@ -1,0 +1,12 @@
+#waiting_room{
+    display: none;
+}
+#play_area{
+    display: none;
+}
+#control{
+    display: block;
+}
+#game_control{
+    display: none;
+}

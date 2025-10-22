@@ -1,6 +1,6 @@
 from "./coupenv.py" import CoupEnv
-
-
+import asyncio
+import secrets
 
 necessary_card_for_action = {Action.TAX : Card.DUKE, Action.ASSASSINATE: Card.ASSA, Action.STEAL: Card.CAPT, Action.EXCHANGE: Card.AMBA}
 necessary_card_for_counteraction = {Counteraction.BLOCK_FOREIGN_AID : [Card.DUKE], Counteraction.BLOCK_ASSASSINATE: [Card.CONT], Counteraction.BLOCK_STEAL: [Card.CAPT,Card.AMBA]}
@@ -25,11 +25,11 @@ class GameClient:
     
     MAX_ATTEMPTS = 10
     
-    def __init__(self, is_cpu = True):
-        self.is_cpu = is_cpu
-        self.rng = None
-        if self.is_cpu:
-            self.rng = np.random.default_rng()
+    def __init__(self, name, player_id, token):
+        self.name = name
+        self.id = player_id
+        self.rng = np.random.default_rng()
+        self.token = token
     
     
     
@@ -43,16 +43,34 @@ class GameClient:
     
 class GameController:
     
-    def __init__(self, num_players=3):
+    #host creates a game
+    def __init__(self):
+        self.start_event = asyncio.Event()
+        self.started = False
+        self.clients = {}
+        self.id_count = 0
+
+    # new player joins
+    def connect_player(self,player_name):
+        
+        session_token = secrets.token_urlsafe(10)
+        player_id = self.id_count
+        self.id_count+=1
+        self.clients[player_id] = GameClient(player_name, player_id, session_token)
+        
+        
+        return {"id": player_id, "token": session_token}
+        
+    #host starts the game
+    def start_game(self, num_players):
         self.num_players = num_players
         self.env = CoupEnv(num_players)
-        self.reset()
-    
-    def reset(self): 
         self.turn_order = [i for i in range(self.num_players)]
         self.game_over = False
         self.turn_num = 0
-        self.clients = {player_id: GameClient() for player_id in range(self.num_players)}
+        
+    
+        
         
         
     def game_loop(self):

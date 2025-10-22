@@ -63,10 +63,10 @@ async def play(websocket, game, player, connected):
         event = json.loads(message)
         assert event["type"] == "play"
         
-        column = event["column"]
+        move = event["move"]
         
         try:
-            move = game.play(player, column)
+            game.play(player, move)
         except ValueError as exc:
             await error(websocket, str(exc))
             continue
@@ -74,7 +74,7 @@ async def play(websocket, game, player, connected):
         event = {
             "type":"play",
             "player": player,
-            "move":column
+            "move":move
         }
         broadcast(connected, json.dumps(event))
         
@@ -86,7 +86,7 @@ async def play(websocket, game, player, connected):
             broadcast(connected, json.dumps(event))
 
 
-async def startgame(websocket, game, connected):
+async def start_game(websocket, game, connected):
     message = await websocket.recv()
     event = json.loads(message)
     
@@ -126,7 +126,7 @@ async def create(websocket):
         }
         await websocket.send(json.dumps(event))
         
-        await startgame(websocket, game, connected)
+        await start_game(websocket, game, connected)
         
         
         await play(websocket, game, PLAYER1, connected)
@@ -147,6 +147,11 @@ async def join(websocket, join_key):
     connected.add(websocket)
     try:
         #await replay(websocket, game)
+        event = {
+            "type": "init"
+        }
+        await websocket.send(json.dumps(event))
+        
         await game.start_event.wait()
         
         await play(websocket, game, PLAYER2, connected)

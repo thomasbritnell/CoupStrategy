@@ -10,20 +10,61 @@
     </header>
     <body>
         <div id="play_area">
+            
+            <div id="player_info">
+                <p id="player_name"></p>
+                <p id="player_coins"></p>
+            </div>
 
+    
+
+            <div id="other_players">
+                <ul id="players_list">
+                </ul>
+            </div>
+
+
+            <div id="player_cards">
+                <ul id="cards_list">
+
+                </ul>
+            </div>
+
+            <div id="game_control">
+                <div id="challenges">
+                    <ul>
+                        <li><button id="challenge">Challenge</button></li>
+                        <li><button id="counteract">Counteract</button></li>
+                        <li><button id="pass">Pass</button></li>
+                    </ul>
+                </div>
+                <div id="actions">
+                    <ul id="action_buttons">
+                        <li><button id="income">Income</button></li>
+                        <li><button id="foreign_aid">Foreign Aid</button></li>
+                        <li><button id="coup">Coup</button></li>
+                        <li><button id="tax">Tax</button></li>
+                        <li><button id="assassinate">Assassinate</button></li>
+                        <li><button id="exchange">Exchange</button></li>
+                        <li><button id="steal">Steal</button></li>
+                    </ul>
+                </div>
+            </div>
         </div>
+
         <div id="control">
-
+            <button id="start">Start a new game</button>
+            <button id="join">Join a game</button>
+            <input id="join_text" type="text">
         </div>
+
         <div id="waiting_room">
             <p id="wait_message"></p>
             <p id="key_text"></p>
-    
+            <button id="start_game_button">Start</button>
 
         </div>
-        <div id="game_control">
-
-        </div>
+        
 
         <pre id="log"></pre>
 
