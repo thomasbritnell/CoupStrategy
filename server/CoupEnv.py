@@ -1,117 +1,10 @@
 import numpy as np
 from enum import IntEnum
 
-class Card(IntEnum):
-    DUKE = 0
-    ASSA = 1
-    CAPT = 2
-    AMBA = 3
-    CONT = 4
-    
-    def __str__(self):
-        return self.name
-    
-class Actions(IntEnum):
-    INCOME = 0
-    FOREIGN_AID = 1
-    COUP = 2
-    TAX = 3
-    ASSASSINATE = 4
-    STEAL = 5
-    EXCHANGE = 6
-    
-    def __str__(self):
-        return self.name
 
-class Counteractions(IntEnum):
-    BLOCK_STEAL = 7
-    BLOCK_ASSASSINATE = 8
-    BLOCK_FOREIGN_AID = 9      
-
-class Rules:
-    STARTING_COINS = 2
-    INCOME_AMT = 1
-    FOREIGN_AID_AMT = 2
-    TAX_AMT = 3
-    STEAL_AMT = 2
-    COUP_COST = 7
-    ASSASSINATE_COST = 3
-    
-    
-class Action_Response(IntEnum):
-    PASS = 0
-    CHALLENGE = 1
-    COUNTERACT = 2
-    
-    def __str__(self):
-        return self.name
-
-necessary_card_for_action = {Actions.TAX : Card.DUKE, Actions.ASSASSINATE: Card.ASSA, Actions.STEAL: Card.CAPT, Actions.EXCHANGE: Card.AMBA}
-necessary_card_for_counteraction = {Counteractions.BLOCK_FOREIGN_AID : [Card.DUKE], Counteractions.BLOCK_ASSASSINATE: [Card.CONT], Counteractions.BLOCK_STEAL: [Card.CAPT,Card.AMBA]}
-
-action_counteraction_map = {Actions.STEAL: Counteractions.BLOCK_STEAL, Actions.ASSASSINATE : Counteractions.BLOCK_ASSASSINATE}
+from "./constants.py" import Card,Action,Counteraction,Rules,Action_Response
 
 
-
-DECK_LAYOUT = {
-    Card.DUKE : 3,
-    Card.ASSA : 3,
-    Card.CAPT : 3,
-    Card.AMBA : 3,
-    Card.CONT : 3
-}
-
-ALL_ACTIONS = list(Actions)
-
-INCONTESTABLE_ACTIONS = [Actions.INCOME, Actions.COUP]
-
-
-
-
-
-
-# class PlayerState:
-#     def __init__(self,id):
-#         self.id = id
-#         self.coins = 0
-#         self.cards = []
-        
-#     def give_card(self,card):
-#         self.cards.append(card)
-        
-#     def __str__(self):
-#         return f"Player {self.id}"
-        
-# class PlayerState:
-#     def __init__(self, coins:int = 2, card_1:Card, card_2:Card):
-#         self.coins = coins
-#         self.cards = [card_1, card_2]
-#         self.alive = True
-    
-#     def is_alive(self) -> bool:
-#         return self.alive
-
-#     def num_cards(self) -> int:
-#         return len(self.cards)
-    
-#     def kill(self):
-#         assert(not self.alive), "Player is already dead"
-#         self.alive = False
-
-#     def remove_card(self, card:Card):
-#         assert(card in self.cards), "Player doesn't have that card"
-#         self.cards.remove(card)
-        
-#     def add_card(self, card:Card):
-#         assert(self.num_cards() < 2), "Player has too many cards"
-#         self.cards.append(card)
-        
-#     def mod_coins(self, diff:int):
-#         new_total = diff + self.coins
-#         assert(new_total >= 0), "Player cannot go below 0 coins"
-#         self.coins = new_total
-
-    
 
 class CoupEnv:
     def __init__(self, num_players: int = 3, seed: int | None = None):
@@ -120,6 +13,13 @@ class CoupEnv:
         self.num_players = num_players
         self.deck = []
         self.reset()
+        self.deck_layout = {
+            Card.DUKE : 3,
+            Card.ASSA : 3,
+            Card.CAPT : 3,
+            Card.AMBA : 3,
+            Card.CONT : 3
+        }
 
     def reset(self):
 
@@ -164,32 +64,32 @@ class CoupEnv:
         new_cards = action["new_cards"]
         killed_card = action["killed_card"]
         
-        if action_type == Actions.INCOME:
+        if action_type == Action.INCOME:
             return lambda no_effect: self._mod_player_coins(player_id, change = Rules.INCOME_AMT)
             
-        elif action_type == Actions.FOREIGN_AID:
+        elif action_type == Action.FOREIGN_AID:
             return lambda no_effect: self._mod_player_coins(player_id, change = Rules.FOREIGN_AID_AMT)
 
-        elif action_type == Actions.COUP:
+        elif action_type == Action.COUP:
             def coup_function(no_effect):
                 self._mod_player_coins(player_id, change = -Rules.COUP_COST)
                 self.remove_player_card(target_player_id, killed_card)
             return coup_function
             
-        elif action_type == Actions.TAX:
+        elif action_type == Action.TAX:
             def tax_function(no_effect):
                 if not no_effect:
                     self._mod_player_coins(player_id, change = Rules.TAX_AMT)
             return tax_function
             
-        elif action_type == Actions.ASSASSINATE:
+        elif action_type == Action.ASSASSINATE:
             def assassinate_function(no_effect):
                 self._mod_player_coins(player_id, change = -Rules.ASSASSINATE_COST)
                 if not no_effect:
                     self.remove_player_card(target_player_id, killed_card)
             return assassinate_function
 
-        elif action_type == Actions.STEAL:
+        elif action_type == Action.STEAL:
             def steal_function(no_effect):
                 if not no_effect:
                     coins_to_steal = min(Rules.STEAL_AMT, self.player_states[target_player_id]["coins"])
@@ -197,7 +97,7 @@ class CoupEnv:
                     self._mod_player_coins(player_id, change = coins_to_steal)
             return steal_function
             
-        elif action_type == Actions.EXCHANGE:
+        elif action_type == Action.EXCHANGE:
             def exchange_function(no_effect):
                 if not no_effect:
                     self.player_states[player_id]["cards"] = new_cards
@@ -233,16 +133,16 @@ class CoupEnv:
         state = self.player_states[player_id]
 
         if state["coins"] >= 10:
-            return [Actions.COUP]
+            return [Action.COUP]
 
-        actions = ALL_ACTIONS.copy()
+        actions = list(Action)
         
         
         if state["coins"] < 7:
-            actions.remove(Actions.COUP)
+            actions.remove(Action.COUP)
             
             if state["coins"] < 3:
-                actions.remove(Actions.ASSASSINATE)
+                actions.remove(Action.ASSASSINATE)
         
         return actions
     
@@ -250,7 +150,7 @@ class CoupEnv:
     def get_targets(self, player_id:int) -> list[int]:
         return [id for id in self.player_states.keys() if id != player_id and self.player_states[id]["alive"]]
 
-#part of deck class?
+    #part of deck class?
     def _deal_card(self)-> int:
         assert(self.deck and len(self.deck) > 0), "Deck Empty or Not Yet Initialized"
 

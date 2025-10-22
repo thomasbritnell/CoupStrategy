@@ -1,4 +1,15 @@
-from "./CoupEnv.py" import CoupEnv
+from "./coupenv.py" import CoupEnv
+
+
+
+necessary_card_for_action = {Action.TAX : Card.DUKE, Action.ASSASSINATE: Card.ASSA, Action.STEAL: Card.CAPT, Action.EXCHANGE: Card.AMBA}
+necessary_card_for_counteraction = {Counteraction.BLOCK_FOREIGN_AID : [Card.DUKE], Counteraction.BLOCK_ASSASSINATE: [Card.CONT], Counteraction.BLOCK_STEAL: [Card.CAPT,Card.AMBA]}
+
+action_counteraction_map = {Action.STEAL: Counteraction.BLOCK_STEAL, Action.ASSASSINATE : Counteraction.BLOCK_ASSASSINATE}
+
+
+INCONTESTABLE_ACTIONS = [Action.INCOME, Action.COUP]
+
 
 
 def log(func):
@@ -167,10 +178,10 @@ class GameController:
 
         #action options that only happen after turn is finalized
         if (not no_effect):
-            if action["action_type"] == Actions.EXCHANGE:
+            if action["action_type"] == Action.EXCHANGE:
                 new_cards = self.request_exchange(action["player_id"])
                 
-            elif action["action_type"] in [Actions.ASSASSINATE, Actions.COUP]:
+            elif action["action_type"] in [Action.ASSASSINATE, Action.COUP]:
                 killed_card = self.request_card_reveal(action["target_player_id"])
         
         
@@ -189,13 +200,13 @@ class GameController:
         
         actions = self.env._get_legal_actions(player_id)
         
-        action_type = Actions(self.clients[player_id].ask_input(actions))
+        action_type = Action(self.clients[player_id].ask_input(actions))
         
         target_id = None
         
 
         target_id = None
-        if action_type in [Actions.COUP, Actions.STEAL, Actions.ASSASSINATE]:
+        if action_type in [Action.COUP, Action.STEAL, Action.ASSASSINATE]:
             
             target_id = int(self.clients[player_id].ask_input(self.env.get_targets(player_id)))
 
@@ -273,11 +284,11 @@ class GameController:
         
         
        
-        if action_type == Actions.FOREIGN_AID:
+        if action_type == Action.FOREIGN_AID:
             for other_id in other_players:
                 res = self.request_action_response(other_id, [Action_Response.PASS, Action_Response.COUNTERACT])
                 if res != Action_Response.PASS:
-                     return {"type": res, "from_player": other_id, "counteraction": Counteractions.BLOCK_FOREIGN_AID}
+                     return {"type": res, "from_player": other_id, "counteraction": Counteraction.BLOCK_FOREIGN_AID}
         else:
             for other_id in other_players:
                 

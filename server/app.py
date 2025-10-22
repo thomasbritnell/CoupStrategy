@@ -16,8 +16,10 @@ class GameStub:
         self.moves = []
         self.winner = None
         self.turn_counter = 0
+        self.started = False
+        self.start_event = asyncio.Event()
     
-    def play(self,player:str,move):
+    def play(self,player,move):
         self.moves.append([[player,move]])
         self.turn_counter += 1
         
@@ -26,9 +28,12 @@ class GameStub:
             return None
         else:
             return "red" 
+        
+    
 
 
 JOIN = {}
+MAX_GAMES = 5
 
 async def error(websocket, message):
     event = {
@@ -37,21 +42,27 @@ async def error(websocket, message):
     }
     await websocket.send(json.dumps(event))
 
-async def replay(websocket, game):
+# async def replay(websocket, game):
     
-    for player, move in game.moves.copy():
-        event = {
-            "type" : "play",
-            "player" : player,
-            "move" : move
-        }
-        await websocket.send(json.dumps(event))
+#     for player, move in game.moves.copy():
+#         event = {
+#             "type" : "play",
+#             "player" : player,
+#             "move" : move
+#         }
+#         await websocket.send(json.dumps(event))
+        
+        
+  # play event is the start of a turn
+  # then whether or not it is needed, we need to get other player input
+  # {"type" : "play", "player_id": player_id, }      
         
 async def play(websocket, game, player, connected):
     #indefinitely listens while websocket is connected for messages
     async for message in websocket:
         event = json.loads(message)
         assert event["type"] == "play"
+        
         column = event["column"]
         
         try:
@@ -74,7 +85,34 @@ async def play(websocket, game, player, connected):
             }
             broadcast(connected, json.dumps(event))
 
-async def start(websocket):
+
+async def startgame(websocket, game, connected):
+    message = await websocket.recv()
+    event = json.loads(message)
+    
+    assert event["type"] == "start_game"
+    
+    num_players = len(connected)
+    
+    event = {
+        "type" : "start_game",
+        "num_players" : num_players
+    }
+    
+    game.started = True
+    game.start_event.set()
+    
+    broadcast(connected, json.dumps(event))
+    
+
+    
+
+async def create(websocket):
+    
+    if len(JOIN) > MAX_GAMES:
+        await error(websocket, "Max games on server reached. Try again later.")
+        return
+    
     game = GameStub()
     connected = {websocket}
     
@@ -88,6 +126,9 @@ async def start(websocket):
         }
         await websocket.send(json.dumps(event))
         
+        await startgame(websocket, game, connected)
+        
+        
         await play(websocket, game, PLAYER1, connected)
     finally:
         del JOIN[join_key]
@@ -99,9 +140,15 @@ async def join(websocket, join_key):
         await error(websocket, "Game not found.")
         return
     
+    if game.started:
+        await error(websocket, "Game already started.")
+        return
+    
     connected.add(websocket)
     try:
-        await replay(websocket, game)
+        #await replay(websocket, game)
+        await game.start_event.wait()
+        
         await play(websocket, game, PLAYER2, connected)
     finally:
         connected.remove(websocket)
@@ -116,7 +163,7 @@ async def handler(websocket):
     if "join" in event:
         await join(websocket, event["join"])
     else:
-        await start(websocket)
+        await create(websocket)
         
 def health_check(connection, request):
     if request.path == "/healthz":
