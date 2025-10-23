@@ -7,7 +7,7 @@ from "./constants.py" import Card,Action,Counteraction,Rules,Action_Response
 
 
 class CoupEnv:
-    def __init__(self, num_players: int = 3, seed: int | None = None):
+    def __init__(self, num_players, seed: int | None = None):
         
         self.rng = np.random.default_rng(seed)
         self.num_players = num_players

@@ -18,7 +18,7 @@ function showWaitingRoom(key=""){
 
     const text = waiting_room.querySelector("#wait_message");
     const key_text = waiting_room.querySelector("#key_text");
-    const start_button = waiting_room.querySelector("#start_game_button");
+    const create_button = waiting_room.querySelector("#start_game_button");
 
 
     if (key){
@@ -26,11 +26,11 @@ function showWaitingRoom(key=""){
         key_text.textContent = key
     }else{
         text.textContent = "Waiting for host to start the game."
-        start_button.style.display = "none";
+        create_button.style.display = "none";
     }
 }
 
-function showGame(players){
+function initGame(players){
     hideWaitingRoom()
 
     const play_area = document.getElementById("play_area");
@@ -66,14 +66,14 @@ window.addEventListener("DOMContentLoaded",()=>{
         
         switch(event_json.type){
             case "init":
-                if (event_json.join){
+                if (event_json.join){ //you are the host
                     showWaitingRoom(key=event_json.join);
                 }else{
-                    showWaitingRoom();
+                    showWaitingRoom(); //you are a guest
                 }
                 break;
             case "start_game":
-                    showGame(players= event_json.num_players)
+                    initGame(players= event_json.num_players)
                 break;
             case "play":
                     updateGame(event_json)
@@ -93,35 +93,45 @@ window.addEventListener("DOMContentLoaded",()=>{
 
     const control = document.getElementById("control");
 
-    const start_button = control.querySelector("#start");
+    const create_button = control.querySelector("#create");
     const join_button = control.querySelector("#join");
     const join_field = control.querySelector("#join_text")
-  
+    const player_name_text = control.querySelector("#player_name_text")
 
 
-    start_button.onclick = () => {
+    create_button.onclick = () => {
+
+
         if (!socket || socket.readyState !== WebSocket.OPEN){
             log("Not connected to server");
             return;
         }
 
-        socket.send(JSON.stringify({type:"init"}));
+        const name = player_name_text.value.trim()
+
+        
+
+        socket.send(JSON.stringify({type:"init", player_name:name}));
 
 
     }
     
     join_button.onclick = () => {
 
-        const text = join_field.value.trim()
-        // if (!text || (!/^[a-z0-9 ]+$/i.test(text))){
-        //     log("Invalid code format");
-        //     return;
-        // }
         if (!socket || socket.readyState !== WebSocket.OPEN){
             log("Not connected to server");
             return;
         }
-        socket.send(JSON.stringify({type:"init",join: text}));
+
+        const text = join_field.value.trim()
+        const name = player_name_text.value.trim()
+
+        // if (!text || (!/^[a-z0-9 ]+$/i.test(text))){
+        //     log("Invalid code format");
+        //     return;
+        // }
+        
+        socket.send(JSON.stringify({type:"init",join: text, player_name:name}));
 
     }
 

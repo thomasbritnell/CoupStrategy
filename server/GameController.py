@@ -23,15 +23,21 @@ def log(func):
     
 class GameClient:
     
-    MAX_ATTEMPTS = 10
     
-    def __init__(self, name, player_id, token):
+    def __init__(self, name, player_id, token, player_colour):
         self.name = name
         self.id = player_id
         self.rng = np.random.default_rng()
         self.token = token
+        self.colour = player_colour
+        
     
-    
+    def to_json(self):
+        return {
+            "name" : self.name,
+            "id" : self.id,
+            "colour" : self.colour
+        }
     
     def ask_input(self,options:list):
         return self.rng.choice(options)
@@ -43,35 +49,50 @@ class GameClient:
     
 class GameController:
     
+    colours = [
+    "#E63946",  # red
+    "#F1FAEE",  # off white
+    "#A8DADC",  # light blue
+    "#457B9D",  # steel blue
+    "#1D3557",  # navy
+    "#FFB703",  # amber
+    "#FB8500",  # orange
+    "#8E44AD",  # purple
+    "#2ECC71",  # green
+    "#F5B7B1",  # pink
+    "#34495E",  # dark gray
+    "#95A5A6",  # light gray
+    ]
+    
     #host creates a game
     def __init__(self):
         self.start_event = asyncio.Event()
         self.started = False
         self.clients = {}
-        self.id_count = 0
+        self.num_players = 0
 
     # new player joins
     def connect_player(self,player_name):
         
         session_token = secrets.token_urlsafe(10)
-        player_id = self.id_count
-        self.id_count+=1
-        self.clients[player_id] = GameClient(player_name, player_id, session_token)
+        player_id = self.num_players
+        player_colour = colours[player_id]
+        self.num_players+=1
+        self.clients[player_id] = GameClient(player_name, player_id, session_token, player_colour)
         
         
-        return {"id": player_id, "token": session_token}
+        
+        return {"id": player_id, "token": session_token, "colour": player_colour}
         
     #host starts the game
-    def start_game(self, num_players):
-        self.num_players = num_players
-        self.env = CoupEnv(num_players)
+    def start_game(self):
+        
+        self.env = CoupEnv(self.num_players)
         self.turn_order = [i for i in range(self.num_players)]
         self.game_over = False
         self.turn_num = 0
         
     
-        
-        
         
     def game_loop(self):
         while not self.game_over:

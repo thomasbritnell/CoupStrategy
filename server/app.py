@@ -2,32 +2,103 @@ import asyncio
 import http
 import json
 import os
+import numpy as np
 import secrets
 import signal
 
 from websockets.asyncio.server import broadcast, serve
 
-PLAYER1 = "red"
-PLAYER2 = "blue"
+from './coupenv.py' import CoupEnv
 
 
-class GameStub:
+class GameClient:
+    
+    def __init__(self, name, player_id, token, player_colour):
+        self.name = name
+        self.id = player_id
+        self.rng = np.random.default_rng()
+        self.token = token
+        self.colour = player_colour
+        
+    
+    def to_json(self):
+        return {
+            "name" : self.name,
+            "id" : self.id,
+            "colour" : self.colour
+        }
+    
+    def ask_input(self,options:list):
+        return self.rng.choice(options)
+        
+
+class CoupGame:
+    
+    colours = [
+    "#E63946",  # red
+    "#F1FAEE",  # off white
+    "#A8DADC",  # light blue
+    "#457B9D",  # steel blue
+    "#1D3557",  # navy
+    "#FFB703",  # amber
+    "#FB8500",  # orange
+    "#8E44AD",  # purple
+    "#2ECC71",  # green
+    "#F5B7B1",  # pink
+    "#34495E",  # dark gray
+    "#95A5A6",  # light gray
+    ]
+    
     def __init__(self):
-        self.moves = []
-        self.winner = None
-        self.turn_counter = 0
-        self.started = False
+        
         self.start_event = asyncio.Event()
+        self.started = False
+        self.clients = {}
+        self.turn_events = {}
+        self.num_players = 0
+        self.turn_counter = 0
+    
+    def connect_player(self,player_name):
+        
+        session_token = secrets.token_urlsafe(10)
+        player_id = self.num_players
+        self.num_players+=1
+        self.clients[player_id] = GameClient(player_name, player_id, session_token)
+        self.turn_events[player_id] = asyncio.Event()
+        
+        return {"id": player_id, "token": session_token, "colour": colours[player_id]}
+    
+    def start_game(self):
+        
+        self.env = CoupEnv(self.num_players)
+        self.turn_order = [i for i in range(self.num_players)]
+        self.game_over = False
+        self.turn_num = 0
+        self.started = True
+        self.start_event.set()
+            
+            
     
     def play(self,player,move):
-        self.moves.append([[player,move]])
-        self.turn_counter += 1
+        pass
+        
+    def get_player_info(self):
+        ps = self.env.player_states()
+        
+        pi = ps.copy()
+        
+        #make the actual card values anonymous
+        for p in pi:
+            n = len(p["cards"])
+            p["cards"] = n
+        
+        
         
     def winner(self):
-        if self.turn_counter < 10:
-            return None
+        if self.env.is_terminal():
+            return self.env.get_winner()
         else:
-            return "red" 
+            return None
         
     
 
@@ -57,33 +128,37 @@ async def error(websocket, message):
   # then whether or not it is needed, we need to get other player input
   # {"type" : "play", "player_id": player_id, }      
         
-async def play(websocket, game, player, connected):
-    #indefinitely listens while websocket is connected for messages
-    async for message in websocket:
-        event = json.loads(message)
-        assert event["type"] == "play"
+async def play(websocket, game, connected):
+   
+    #individual game loop here
+    
+    
+    
+    # wait for your turn via an event?
+    # when its your turn, send the turn request 
+    
+    # async for message in websocket:
+    #     event = json.loads(message)
+    #     assert event["type"] == "play"
         
-        move = event["move"]
+    #     move = event["move"]
         
-        try:
-            game.play(player, move)
-        except ValueError as exc:
-            await error(websocket, str(exc))
-            continue
+    #     try:
+    #         game.play(player, move)
+    #     except ValueError as exc:
+    #         await error(websocket, str(exc))
+    #         continue
 
-        event = {
-            "type":"play",
-            "player": player,
-            "move":move
-        }
-        broadcast(connected, json.dumps(event))
+    #     event = {
+    #         "type":"play",
+    #         "player": player,
+    #         "move":move
+    #     }
+    #     broadcast(connected, json.dumps(event))
         
-        if game.winner is not None:
-            event = {
-                "type":"win",
-                "player": game.winner
-            }
-            broadcast(connected, json.dumps(event))
+        
+        #if game is won logic here
+        
 
 
 async def start_game(websocket, game, connected):
@@ -92,35 +167,43 @@ async def start_game(websocket, game, connected):
     
     assert event["type"] == "start_game"
     
-    num_players = len(connected)
+    
     
     event = {
         "type" : "start_game",
         "num_players" : num_players
     }
     
-    game.started = True
-    game.start_event.set()
-    
+    #send out the game information so the ui can setup properly
     broadcast(connected, json.dumps(event))
     
+    #now the players are unblocked and the game starts
+    game.start_game()
+    
+    
+    
+    
 
     
 
-async def create(websocket):
+async def create(websocket, player_name):
     
     if len(JOIN) > MAX_GAMES:
         await error(websocket, "Max games on server reached. Try again later.")
         return
     
-    game = GameStub()
+    game = CoupGame()
+    player_info = game.connect_player(player_name)
+    
+    
+    
     connected = {websocket}
     
     join_key = secrets.token_urlsafe(12)
     JOIN[join_key] = game, connected
 
     try:
-        event = {
+        event = { #event sent to the host after they created the game
             "type": "init",
             "join": join_key
         }
@@ -129,11 +212,11 @@ async def create(websocket):
         await start_game(websocket, game, connected)
         
         
-        await play(websocket, game, PLAYER1, connected)
+        await play(websocket, game, connected)
     finally:
         del JOIN[join_key]
 
-async def join(websocket, join_key):
+async def join(websocket, join_key, player_name):
     try:
         game, connected = JOIN[join_key]
     except KeyError:
@@ -154,7 +237,7 @@ async def join(websocket, join_key):
         
         await game.start_event.wait()
         
-        await play(websocket, game, PLAYER2, connected)
+        await play(websocket, game, connected)
     finally:
         connected.remove(websocket)
         
@@ -166,9 +249,9 @@ async def handler(websocket):
     assert event["type"] == "init"
     
     if "join" in event:
-        await join(websocket, event["join"])
+        await join(websocket, event["join"], event["player_name"])
     else:
-        await create(websocket)
+        await create(websocket, event["player_name"])
         
 def health_check(connection, request):
     if request.path == "/healthz":
