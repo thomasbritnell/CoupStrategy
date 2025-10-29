@@ -48,15 +48,31 @@ function updateGame(play_event){
     
 }
 
+function sendOnSocket(socket,message){
+
+    id = sessionStorage.getItem("id");
+    token = sessionStorage.getItem("token");
+
+    if (!socket || socket.readyState !== WebSocket.OPEN){
+            log("Not connected to server");
+            return;
+        }
+    
+    
+    
+    const payload = Object.assign({}, message, { id, token });
+    socket.send(JSON.stringify(payload));
+}
+const log = (msg) => {
+    const el = document.getElementById("log");
+    el.textContent += msg + "\n";
+    };
 
 window.addEventListener("DOMContentLoaded",()=>{
 
     const socket = new WebSocket("ws://localhost:8001");
 
-    const log = (msg) => {
-    const el = document.getElementById("log");
-    el.textContent += msg + "\n";
-    };
+    
 
    
 
@@ -66,6 +82,10 @@ window.addEventListener("DOMContentLoaded",()=>{
         
         switch(event_json.type){
             case "init":
+                sessionStorage.setItem("token" , event_json.token)
+                sessionStorage.setItem("id", event_json.id)
+                sessionStorage.setItem("colour", event_json.colour)
+                sessionStorage.setItem("name", event_json.name)
                 if (event_json.join){ //you are the host
                     showWaitingRoom(key=event_json.join);
                 }else{
@@ -79,8 +99,7 @@ window.addEventListener("DOMContentLoaded",()=>{
                     updateGame(event_json)
                 break;
             default:
-                log("Unknown event encountered.")
-
+                break;
         }
 
 
@@ -102,26 +121,20 @@ window.addEventListener("DOMContentLoaded",()=>{
     create_button.onclick = () => {
 
 
-        if (!socket || socket.readyState !== WebSocket.OPEN){
-            log("Not connected to server");
-            return;
-        }
+        
 
         const name = player_name_text.value.trim()
 
         
-
-        socket.send(JSON.stringify({type:"init", player_name:name}));
+        sendOnSocket(socket,{type:"init", player_name:name})
+        
 
 
     }
     
     join_button.onclick = () => {
 
-        if (!socket || socket.readyState !== WebSocket.OPEN){
-            log("Not connected to server");
-            return;
-        }
+       
 
         const text = join_field.value.trim()
         const name = player_name_text.value.trim()
@@ -131,7 +144,7 @@ window.addEventListener("DOMContentLoaded",()=>{
         //     return;
         // }
         
-        socket.send(JSON.stringify({type:"init",join: text, player_name:name}));
+        sendOnSocket(socket,{type:"init",join: text, player_name:name});
 
     }
 
@@ -144,12 +157,9 @@ window.addEventListener("DOMContentLoaded",()=>{
     const start_game_button = waiting_room.querySelector("#start_game_button");
 
     start_game_button.onclick = () => {
-        if (!socket || socket.readyState !== WebSocket.OPEN){
-            log("Not connected to server");
-            return;
-        }
+        
 
-        socket.send(JSON.stringify({type:"start_game"}));
+        sendOnSocket(socket,{type:"start_game"});
     }
 
     //End waiting room
@@ -161,12 +171,7 @@ window.addEventListener("DOMContentLoaded",()=>{
     const action_buttons = play_area.querySelector("#action_buttons");
 
     action_buttons.addEventListener("click", (e) =>{
-        if (!socket || socket.readyState !== WebSocket.OPEN){
-            log("Not connected to server");
-            return;
-        }
-        socket.send(JSON.stringify({type:"play", move: e.target.id}))
-
+        sendOnSocket(socket,{type:"play", move: e.target.id});
     })
 
     // End play area

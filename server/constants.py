@@ -1,3 +1,4 @@
+from enum import IntEnum
 
 class Card(IntEnum):
     DUKE = 0

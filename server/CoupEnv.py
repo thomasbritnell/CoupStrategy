@@ -1,8 +1,8 @@
 import numpy as np
 from enum import IntEnum
+import copy
 
-
-from "./constants.py" import Card,Action,Counteraction,Rules,Action_Response
+from constants import Card,Actions,Counteractions,Rules,Action_Response
 
 
 
@@ -13,21 +13,23 @@ class CoupEnv:
         self.num_players = num_players
         self.deck = []
         self.reset()
-        self.deck_layout = {
-            Card.DUKE : 3,
-            Card.ASSA : 3,
-            Card.CAPT : 3,
-            Card.AMBA : 3,
-            Card.CONT : 3
-        }
+        
+    def serializable_state(self):
+        states = copy.deepcopy(self.player_states)
+        
+        for id,state in states.items():
+            n = len(state["cards"])
+            states[id]["cards"] = n
+        
+        return states
 
     def reset(self):
 
         self.deck.clear()
 
         #supply the deck with cards according to their frequency
-        for card,freq in DECK_LAYOUT.items():
-            for _ in range(freq):
+        for card in list(Card):
+            for _ in range(3):
                 self.deck.append(card)
         
         self.player_states = {}
