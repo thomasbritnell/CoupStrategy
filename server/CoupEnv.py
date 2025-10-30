@@ -2,9 +2,9 @@ import numpy as np
 from enum import IntEnum
 import copy
 
-from constants import Card,Actions,Counteractions,Rules,Action_Response
+from constants import Rules
 
-
+from action import CardType, ActionType
 
 class CoupEnv:
     def __init__(self, num_players, seed: int | None = None):
@@ -28,7 +28,7 @@ class CoupEnv:
         self.deck.clear()
 
         #supply the deck with cards according to their frequency
-        for card in list(Card):
+        for card in list(CardType):
             for _ in range(3):
                 self.deck.append(card)
         
@@ -66,32 +66,32 @@ class CoupEnv:
         new_cards = action["new_cards"]
         killed_card = action["killed_card"]
         
-        if action_type == Action.INCOME:
+        if action_type == ActionType.INCOME:
             return lambda no_effect: self._mod_player_coins(player_id, change = Rules.INCOME_AMT)
             
-        elif action_type == Action.FOREIGN_AID:
+        elif action_type == ActionType.FOREIGN_AID:
             return lambda no_effect: self._mod_player_coins(player_id, change = Rules.FOREIGN_AID_AMT)
 
-        elif action_type == Action.COUP:
+        elif action_type == ActionType.COUP:
             def coup_function(no_effect):
                 self._mod_player_coins(player_id, change = -Rules.COUP_COST)
                 self.remove_player_card(target_player_id, killed_card)
             return coup_function
             
-        elif action_type == Action.TAX:
+        elif action_type == ActionType.TAX:
             def tax_function(no_effect):
                 if not no_effect:
                     self._mod_player_coins(player_id, change = Rules.TAX_AMT)
             return tax_function
             
-        elif action_type == Action.ASSASSINATE:
+        elif action_type == ActionType.ASSASSINATE:
             def assassinate_function(no_effect):
                 self._mod_player_coins(player_id, change = -Rules.ASSASSINATE_COST)
                 if not no_effect:
                     self.remove_player_card(target_player_id, killed_card)
             return assassinate_function
 
-        elif action_type == Action.STEAL:
+        elif action_type == ActionType.STEAL:
             def steal_function(no_effect):
                 if not no_effect:
                     coins_to_steal = min(Rules.STEAL_AMT, self.player_states[target_player_id]["coins"])
@@ -99,7 +99,7 @@ class CoupEnv:
                     self._mod_player_coins(player_id, change = coins_to_steal)
             return steal_function
             
-        elif action_type == Action.EXCHANGE:
+        elif action_type == ActionType.EXCHANGE:
             def exchange_function(no_effect):
                 if not no_effect:
                     self.player_states[player_id]["cards"] = new_cards
@@ -135,16 +135,16 @@ class CoupEnv:
         state = self.player_states[player_id]
 
         if state["coins"] >= 10:
-            return [Action.COUP]
+            return [ActionType.COUP]
 
-        actions = list(Action)
+        actions = list(ActionType)
         
         
         if state["coins"] < 7:
-            actions.remove(Action.COUP)
+            actions.remove(ActionType.COUP)
             
             if state["coins"] < 3:
-                actions.remove(Action.ASSASSINATE)
+                actions.remove(ActionType.ASSASSINATE)
         
         return actions
     
@@ -156,7 +156,7 @@ class CoupEnv:
     def _deal_card(self)-> int:
         assert(self.deck and len(self.deck) > 0), "Deck Empty or Not Yet Initialized"
 
-        card = Card(self.rng.choice(self.deck))
+        card = self.rng.choice(self.deck)
         self.deck.remove(card)
 
         return card

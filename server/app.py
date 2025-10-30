@@ -12,6 +12,7 @@ from websockets.asyncio.server import broadcast, serve
 
 from coupenv import CoupEnv
 
+from action import ActionType, ReactionType, CardType, Action
     
 class CoupGame:
     
@@ -35,7 +36,6 @@ class CoupGame:
         self.start_event = asyncio.Event()
         self.started = False
         
-        self.turn_events = {}
         self.token_validation = {}
         self.num_players = 0
         self.turn_counter = 0
@@ -54,8 +54,6 @@ class CoupGame:
         player_colour = CoupGame.colours[player_id % len(CoupGame.colours)]
         
         
-        
-        self.turn_events[player_id] = asyncio.Event()
         self.token_validation[session_token] = player_id
         
         self.player_ws[player_id] = websocket
@@ -69,7 +67,8 @@ class CoupGame:
         
         self.env = CoupEnv(self.num_players)
         self.turn_order = [i for i in range(self.num_players)]
-        self.turn = self.turn_order[0]
+        
+        self._can_move = {id:False for id in self.player_meta_info.keys()}
         
         self.game_over = False
         self.turn_counter = 0
@@ -83,7 +82,7 @@ class CoupGame:
         while not self.game_over:
             for player_id in self.turn_order:
                 
-                self.turn = player_id
+                self._can_move[player_id]= True
                 
                 if self.env.is_terminal():
                     self.game_over = True
@@ -96,6 +95,8 @@ class CoupGame:
                 
                 broadcast(self.player_ws.values(), json.dumps({"type":"state_update", "state": self.env.serializable_state()}))
                 
+                
+                
             self.turn_counter+=1
         
         print("game over")
@@ -104,24 +105,36 @@ class CoupGame:
         
         ws = self.player_ws[player_id] 
         
-        await ws.send(json.dumps({"type": "info", "message": "It's your turn"}))
+        await ws.send(json.dumps({"type": "input_request", "input_type": "action"}))
         
         
         q = self.player_input_queues[player_id]
         
         #todo something when the timeout happens
-        msg = await asyncio.wait_for(q.get(),30.0)
+        try:
+            msg = await asyncio.wait_for(q.get(),60.0)
+        except TimeoutError:
+            msg = {"type": "input_fulfill", "player": player_id ,"action": ActionType.INCOME, "target": None}
+            await error(ws, "you timed out. Default action chosen.")
         
+        self._can_move[player_id] = False
         
+        assert(msg["type"] == "input_fulfill"),"didn't recieve input fulfill"
         
-        broadcast(self.player_ws.values(), json.dumps({"type":"turn_played", "msg": msg}))
+         
+         
+        
+        #broadcast(self.player_ws.values(), json.dumps({"type":"turn_played", "msg": msg}))
 
 
 
 
 
-    def turn_of(self, id):
-        return (self.turn == id)
+    def can_move(self, id):
+        assert id in self._can_move.keys(), "Player not found"
+            
+        
+        return (self._can_move[id])
         
         
         
@@ -157,8 +170,8 @@ async def process_inputs(websocket, game, connected,id):
             await error(websocket,"Invalid credential")
             continue
         
-        if not game.turn_of(id):
-            await error(websocket, "Not your turn")
+        if not game.can_move(id):
+            await error(websocket, "Game not waiting for your input")
         else:
             game.player_input_queues[id].put_nowait(event)
             

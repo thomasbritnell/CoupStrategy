@@ -37,11 +37,19 @@ function initGame(players){
 
     play_area.style.display = "block";
 
+    
+
+
+}
+
+function startTurn(){
+
+
     const game_control = play_area.querySelector("#game_control")
 
+
     game_control.style.display = "block";
-
-
+    game_control.querySelector("#actions").style.display = "block";
 }
 
 function updateGame(play_event){
@@ -94,6 +102,11 @@ window.addEventListener("DOMContentLoaded",()=>{
                 break;
             case "start_game":
                     initGame(players= event_json.num_players)
+                break;
+            case "input_request":
+                if (event_json["input_type"] == "action"){
+                    startTurn()
+                }
                 break;
             case "play":
                     updateGame(event_json)
@@ -171,7 +184,7 @@ window.addEventListener("DOMContentLoaded",()=>{
     const action_buttons = play_area.querySelector("#action_buttons");
 
     action_buttons.addEventListener("click", (e) =>{
-        sendOnSocket(socket,{type:"play", move: e.target.id});
+        sendOnSocket(socket,{type:"input_fulfill", move: e.target.id});
     })
 
     // End play area

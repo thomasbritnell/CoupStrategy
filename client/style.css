@@ -10,3 +10,9 @@
 #game_control{
     display: none;
 }
+#challenges{
+    display : none;
+}
+#actions{
+    display: none;
+}
